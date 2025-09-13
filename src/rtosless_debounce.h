@@ -13,13 +13,13 @@
 ([]() -> bool { \
     static bool __RTOSLESS_UNIQUE(last_raw) = (expr); \
     static bool __RTOSLESS_UNIQUE(stable_state) = (expr); \
-    static uint64_t __RTOSLESS_UNIQUE(last_change) = millis(); \
+    static uint32_t __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
     bool raw = (expr); \
     if (raw != __RTOSLESS_UNIQUE(last_raw)) { \
         __RTOSLESS_UNIQUE(last_raw) = raw; \
-        __RTOSLESS_UNIQUE(last_change) = millis(); \
+        __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
     } \
-    if ((millis() - __RTOSLESS_UNIQUE(last_change)) >= (ms) && raw != __RTOSLESS_UNIQUE(stable_state)) { \
+    if ((rl::kernel_millis() - __RTOSLESS_UNIQUE(last_change)) >= (ms) && raw != __RTOSLESS_UNIQUE(stable_state)) { \
         __RTOSLESS_UNIQUE(stable_state) = raw; \
         return true; \
     } \
@@ -31,13 +31,13 @@
 ([]() -> bool { \
     static bool __RTOSLESS_UNIQUE(last_raw) = (expr); \
     static bool __RTOSLESS_UNIQUE(stable_state) = (expr); \
-    static uint64_t __RTOSLESS_UNIQUE(last_change) = millis(); \
+    static uint32_t __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
     bool raw = (expr); \
     if (raw != __RTOSLESS_UNIQUE(last_raw)) { \
         __RTOSLESS_UNIQUE(last_raw) = raw; \
-        __RTOSLESS_UNIQUE(last_change) = millis(); \
+        __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
     } \
-    if ((millis() - __RTOSLESS_UNIQUE(last_change)) >= (ms)) { \
+    if ((rl::kernel_millis() - __RTOSLESS_UNIQUE(last_change)) >= (ms)) { \
         __RTOSLESS_UNIQUE(stable_state) = raw; \
     } \
     return __RTOSLESS_UNIQUE(stable_state); \

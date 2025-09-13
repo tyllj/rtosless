@@ -85,13 +85,13 @@ void name##_resume() { \
         // ⏱️ Delay macro (non-blocking)
         #define RL_ASYNC_DELAY(ms) \
         do { \
-            static uint64_t __delay_start = 0; \
+            static uint32_t __delay_start = 0; \
             if (__delay_start == 0) { \
-                __delay_start = millis(); \
+                __delay_start = rl::kernel_millis(); \
                 __resume = __func__; \
                 __state = __LINE__; return; case __LINE__:; \
             } \
-            if (millis() - __delay_start < (ms)) { \
+            if (rl::kernel_millis() - __delay_start < (ms)) { \
                 __resume = __func__; \
                 __state = __LINE__; return; case __LINE__:; \
             } \
@@ -100,13 +100,13 @@ void name##_resume() { \
 
         #define RL_ASYNC_DELAY_MICROS(us) \
         do { \
-            static uint64_t __delay_start = 0; \
+            static uint32_t __delay_start = 0; \
             if (__delay_start == 0) { \
-                __delay_start = micros(); \
+                __delay_start = rl::kernel_micros(); \
                 __resume = __func__; \
                 __state = __LINE__; return; case __LINE__:; \
             } \
-            if (micros() - __delay_start < (us)) { \
+            if (rl::kernel_micros() - __delay_start < (us)) { \
                 __resume = __func__; \
                 __state = __LINE__; return; case __LINE__:; \
             } \

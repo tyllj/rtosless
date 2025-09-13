@@ -7,8 +7,8 @@ extern "C" {
 
     #include <stdint.h>
 
-    uint32_t rtosless_enter_critical(void);
-    void rtosless_exit_critical(uint32_t prev);
+    uint32_t rl_enter_critical(void);
+    void rl_exit_critical(uint32_t prev);
 
     #ifdef __cplusplus
 }

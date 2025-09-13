@@ -23,17 +23,17 @@ extern "C" {
     #define SCHED_PRIO_HIGH 1
 
     // C API
-    uint8_t timer_create(void (*handler)(void), uint64_t interval, uint64_t phase,
+    uint8_t timer_create(void (*handler)(void), uint32_t interval, uint32_t phase,
                          uint8_t resolution, uint8_t priority, uint8_t one_shot);
-    uint8_t timer_create_millis(void (*handler)(void), uint64_t interval, uint64_t phase);
-    uint8_t timer_create_micros(void (*handler)(void), uint64_t interval, uint64_t phase);
-    uint8_t timer_do_in_millis(void (*handler)(void), uint64_t delay);
+    uint8_t timer_create_millis(void (*handler)(void), uint32_t interval, uint32_t phase);
+    uint8_t timer_create_micros(void (*handler)(void), uint32_t interval, uint32_t phase);
+    uint8_t timer_do_in_millis(void (*handler)(void), uint32_t delay);
     void timer_pause(uint8_t index);
     void timer_continue(uint8_t index);
     void timer_delete(uint8_t index);
-    void timer_reconfigure(uint8_t index, void (*handler)(void), uint64_t interval,
-                           uint64_t phase, uint8_t resolution, uint8_t priority, uint8_t one_shot);
-    void timer_set_interval(uint8_t index, uint64_t interval);
+    void timer_reconfigure(uint8_t index, void (*handler)(void), uint32_t interval,
+                           uint32_t phase, uint8_t resolution, uint8_t priority, uint8_t one_shot);
+    void timer_set_interval(uint8_t index, uint32_t interval);
     void timer_set_priority(uint8_t index, uint8_t priority);
     void timer_process_queue(void);
     void timer_bind_member(uint8_t index, void* instance, void (*stub)(void*));
@@ -71,7 +71,7 @@ extern "C" {
 
 // C++ member function binding
 template<typename T>
-uint8_t timer_create_member(T* instance, void (T::*method)(), uint64_t interval, uint64_t phase,
+uint8_t timer_create_member(T* instance, void (T::*method)(), uint32_t interval, uint32_t phase,
                             uint8_t resolution, uint8_t priority, uint8_t one_shot)
 {
     uint8_t index = timer_create(nullptr, interval, phase, resolution, priority, one_shot);

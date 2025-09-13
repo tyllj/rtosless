@@ -8,7 +8,7 @@
 
 extern "C" {
 
-    uint32_t rtosless_enter_critical(void) {
+    uint32_t rl_enter_critical(void) {
         #if defined(__AVR__) || defined(ARDUINO_ARCH_AVR)
         uint8_t sreg = SREG;
         cli();
@@ -32,7 +32,7 @@ extern "C" {
         #endif
     }
 
-    void rtosless_exit_critical(uint32_t prev) {
+    void rl_exit_critical(uint32_t prev) {
         #if defined(__AVR__) || defined(ARDUINO_ARCH_AVR)
         if ((prev & 0x1u) == 0u) sei();
 

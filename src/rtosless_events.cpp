@@ -32,9 +32,9 @@ extern "C" {
 
     int32_t event_post(void (*handler)(event_args_t), event_args_t args, uint8_t priority) {
         if (handler == (void (*)(event_args_t))0 || priority >= SCHED_EVENT_PRIO_COUNT) return -1;
-        uint32_t ps = rtosless_enter_critical();
+        uint32_t ps = rl_enter_critical();
         int32_t rc = event_enqueue_unsafe(priority, handler, args);
-        rtosless_exit_critical(ps);
+        rl_exit_critical(ps);
         return rc;
     }
 
@@ -48,7 +48,7 @@ extern "C" {
         void (*h)(event_args_t) = (void (*)(event_args_t))0;
         event_args_t args;
         for (;;) {
-            uint32_t ps = rtosless_enter_critical();
+            uint32_t ps = rl_enter_critical();
             uint8_t found = 0;
             for (uint8_t prio = 0; prio < SCHED_EVENT_PRIO_COUNT; ++prio) {
                 if (event_dequeue_unsafe(prio, &h, &args) == 0) {
@@ -56,7 +56,7 @@ extern "C" {
                     break;
                 }
             }
-            rtosless_exit_critical(ps);
+            rl_exit_critical(ps);
             if (found == 0 || h == (void (*)(event_args_t))0) break;
             h(args);
         }

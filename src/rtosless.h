@@ -11,14 +11,9 @@
 #include "rtosless_signal.h"
 #include "rtosless_loop_timer.h"
 #include "rtosless_states.h"
-
+#include "rtosless_kernel.h"
 
 namespace rl {
-
-    uint32_t kernel_millis();
-    uint32_t kernel_micros();
-    uint32_t kernel_ticks();
-
     void kernel();
 }
 

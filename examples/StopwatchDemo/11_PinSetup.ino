@@ -5,5 +5,6 @@ namespace {
       rl::gpio_pin_mode(PIN_DISP_DAT, rl::gpio_mode::output);
       rl::gpio_pin_mode(PIN_DISP_STCK, rl::gpio_mode::output);
       rl::gpio_pin_mode(PIN_DISP_SHCK, rl::gpio_mode::output);
+      rl::gpio_pin_mode(PIN_LED, rl::gpio_mode::output);
     }
 }

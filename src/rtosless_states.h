@@ -22,6 +22,5 @@ namespace rl {
         }
     }
 }
-#endif
 
 #endif // RTOSLESS_HAL_H

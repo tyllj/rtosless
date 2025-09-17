@@ -1,6 +1,11 @@
 #include "rtosless.h"
 #include "rtosless_hal.h"
 
+#include <Arduino.h>
+
+//extern unsigned long millis();
+//extern unsigned long micros();
+
 namespace rl {
 
     static volatile uint32_t kernel_millis_;

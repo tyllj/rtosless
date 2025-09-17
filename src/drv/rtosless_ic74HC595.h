@@ -1,15 +1,21 @@
 #ifndef RTOSLESS_DRV_74HC595_H
 #define RTOSLESS_DRV_74HC595_H
 
+#ifndef LSBFIRST
+#define LSBFIRST 0
+#endif
+
+#ifndef MSBFIRST
+#define MSBFIRST 1
+#endif
+
 #include <stdint.h>
 #include "rtosless_gpio.h"
 
 namespace rl::drv {
 
-    enum class bit_order_t : uint8_t {
-        LSBFIRST = 0,
-        MSBFIRST = 1
-    };
+    typedef uint8_t bit_order_t;
+
 
     class ic74HC595 {
     public:
@@ -18,26 +24,29 @@ namespace rl::drv {
         rl::pin_t latch_pin;
         bit_order_t bit_order;
 
-        ic74HC595(rl::pin_t data, rl::pin_t clock, rl::pin_t latch, bit_order_t order = bit_order_t::MSBFIRST)
+        ic74HC595(rl::pin_t data, rl::pin_t clock, rl::pin_t latch, bit_order_t order = MSBFIRST)
         : data_pin(data), clock_pin(clock), latch_pin(latch), bit_order(order) {}
 
         void begin_transmission() const {
-            rl::gpio_write(latch_pin, false);
+            rl::gpio_write(latch_pin, LOW);
         }
 
         void end_transmission() const {
-            rl::gpio_write(latch_pin, true);
+            rl::gpio_write(latch_pin, HIGH);
         }
 
         void shift_out(uint8_t val) const {
-            for (uint8_t i = 0; i < 8; ++i) {
-                bool bit = (bit_order == bit_order_t::LSBFIRST)
-                ? (val >> i) & 0x01
-                : (val >> (7 - i)) & 0x01;
+            for (uint8_t i = 0; i < 8; i++)  {
+                if (bit_order == LSBFIRST) {
+                    rl::gpio_write(data_pin, val & 1);
+                    val >>= 1;
+                } else {	
+                    rl::gpio_write(data_pin, (val & 128) != 0);
+                    val <<= 1;
+                }
 
-                rl::gpio_write(data_pin, bit);
-                rl::gpio_write(clock_pin, true);
-                rl::gpio_write(clock_pin, false);
+                rl::gpio_write(clock_pin, HIGH);    
+                rl::gpio_write(clock_pin, LOW);		
             }
         }
 

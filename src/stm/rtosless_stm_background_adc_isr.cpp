@@ -1,9 +1,11 @@
-#include "rtosless_stm_background_adc.h"
-#include "rtosless_stm_adc_config.h"
+
 
 #if defined(STM32F3) || defined(STM32F301x8) || defined(STM32F302x8) || \
 defined(STM32F303xC) || defined(STM32F373xC) || defined(STM32F334x8) || \
 defined(STM32F3XX)
+
+#include "rtosless_stm_background_adc.h"
+#include "rtosless_stm_adc_config.h"
 
 using namespace rl::stm;
 

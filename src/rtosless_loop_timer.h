@@ -2,13 +2,13 @@
 #define RTOSLESS_LOOP_TIMER_H
 
 #include <stdint.h>
-#include <Arduino.h>
+#include "rtosless_kernel.h"
 
 namespace rl {
 
     // 🔁 Fixed-interval timer (repeating)
     class loop_interval_t {
-    private:
+    public:
         uint32_t period;
         uint32_t previous;
         bool use_micros;
@@ -38,7 +38,7 @@ namespace rl {
 
     // 🕒 One-shot timer (single delay)
     class loop_timer_t {
-    private:
+    public:
         uint32_t start;
         uint32_t duration;
         bool triggered;
@@ -73,7 +73,8 @@ namespace rl {
 } // namespace rl
 
 // 🧩 Unique name helpers (internal only)
-#define __RL_CONCAT(a, b) a##b
+#define __RL_CONCAT(a, b) __RL_CONCAT_INNER(a, b)
+#define __RL_CONCAT_INNER(a, b) a##b
 #define __RL_UNIQUE(name) __RL_CONCAT(name, __LINE__)
 
 // 🔁 RL_EVERY_MILLIS(ms): executes block every ms

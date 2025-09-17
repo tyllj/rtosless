@@ -1,7 +1,8 @@
 #include "rtosless_timer.h"
 #include "rtosless_events.h"
 #include "rtosless_hal.h"
-#include <Arduino.h>
+#include "rtosless_kernel.h"
+
 
 typedef struct {
     void (*handler)(void);
@@ -112,18 +113,24 @@ extern "C" {
         return timer_create(handler, delay, 0, TIMER_RESOLUTION_MILLIS, SCHED_PRIO_LOW, 1);
     }
 
-    void timer_set_interval(uint8_t index, uint32_t interval) {
-        if (index >= TIMER_MAX_COUNT) return;
-        uint32_t ps = rl_enter_critical();
-        timers[index].interval = interval;
-        rl_exit_critical(ps);
+    static event_args_t timer_member_event_make_args(void (*member_stub)(void*), void* instance_ptr) {
+        event_args_t args = {};
+        args.ptrs[0] = reinterpret_cast<uintptr_t>(member_stub);
+        args.ptrs[1] = reinterpret_cast<uintptr_t>(instance_ptr);
+        return args;
     }
 
-    void timer_set_priority(uint8_t index, uint8_t priority) {
-        if (index >= TIMER_MAX_COUNT || priority >= SCHED_EVENT_PRIO_COUNT) return;
-        uint32_t ps = rl_enter_critical();
-        timer_set_priority(&timers[index].flags, priority);
-        rl_exit_critical(ps);
+    static event_args_t timer_static_event_make_args(void (*handler)()) {
+        event_args_t args = {};
+        args.ptrs[0] = reinterpret_cast<uintptr_t>(handler);
+        return args;
+    }
+
+    static void call_member_callback(event_args_t args) {
+        void (*member_stub)(void*) = reinterpret_cast<void (*)(void*)>(args.ptrs[0]);    
+        void* instance_ptr = reinterpret_cast<void*>(args.ptrs[1]);
+        if (member_stub != nullptr && instance_ptr != nullptr)
+            member_stub(instance_ptr);
     }
 
     void timer_process_queue(void) {
@@ -131,9 +138,9 @@ extern "C" {
         uint32_t now_us = rtosless_now(TIMER_RESOLUTION_MICROS);
 
         for (uint8_t i = 0; i < TIMER_MAX_COUNT; ++i) {
-            void (*handler)(void) = NULL;
-            void (*member_stub)(void*) = NULL;
-            void* instance_ptr = NULL;
+            void (*handler)(void) = nullptr;
+            void (*member_stub)(void*) = nullptr;
+            void* instance_ptr = nullptr;
             uint8_t priority = 0;
             event_args_t args = {0};
             uint8_t should_invoke = 0;
@@ -146,17 +153,19 @@ extern "C" {
                 if (now >= t->exec_time) {
                     should_invoke = 1;
                     priority = timer_get_priority(t->flags);
-                    args.ptrs[0] = (uintptr_t)(t->handler ? (void*)t->handler : (void*)t->member_stub);
+                    handler = t->handler;
+                    member_stub = t->member_stub;
+                    instance_ptr = t->instance_ptr;
+                    
+                    args = timer_is_member_callback(t->flags)
+                        ? timer_member_event_make_args(member_stub, instance_ptr)
+                        : timer_static_event_make_args(handler);
 
                     if (timer_is_oneshot(i)) {
                         timer_delete(i);
                     } else {
                         t->exec_time += t->interval;
                     }
-
-                    handler = t->handler;
-                    member_stub = t->member_stub;
-                    instance_ptr = t->instance_ptr;
                 }
             }
 
@@ -164,8 +173,8 @@ extern "C" {
 
             if (should_invoke) {
                 if (timer_is_member_callback(t->flags) && member_stub && instance_ptr) {
-                    if (event_post(call_callback, args, priority) != 0) {
-                        member_stub(instance_ptr);
+                    if (event_post(call_member_callback, args, priority) != 0) {
+                       member_stub(instance_ptr);
                     }
                 } else if (handler) {
                     if (event_post(call_callback, args, priority) != 0) {

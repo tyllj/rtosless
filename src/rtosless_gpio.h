@@ -4,6 +4,24 @@
 
 #include <stdint.h>
 
+#if defined(__AVR__)
+#include <avr/io.h>
+#elif defined(STM32F3)
+#include "stm32f3xx.h"
+#elif defined(ESP32C3)
+#include "driver/gpio.h"
+#elif defined(RA4M1)
+#include "r_gpio_rx_if.h"
+#endif
+
+#ifndef HIGH
+#define HIGH 1
+#endif
+
+#ifndef LOW
+#define LOW 0
+#endif
+
 namespace rl {
 
     // 🧭 Port names for all supported platforms
@@ -30,9 +48,8 @@ namespace rl {
     };
 
     #if defined(__AVR__)
-    #include <avr/io.h>
 
-    constexpr volatile uint8_t* port_ddr(port_t port) {
+    inline volatile uint8_t* port_ddr(port_t port) {
         switch (port) {
             case port_t::A: return &DDRA;
             case port_t::B: return &DDRB;
@@ -47,9 +64,10 @@ namespace rl {
             case port_t::L: return &DDRL;
             default: return nullptr;
         }
+        return nullptr;
     }
 
-    constexpr volatile uint8_t* port_out(port_t port) {
+    inline volatile uint8_t* port_out(port_t port) {
         switch (port) {
             case port_t::A: return &PORTA;
             case port_t::B: return &PORTB;
@@ -64,9 +82,10 @@ namespace rl {
             case port_t::L: return &PORTL;
             default: return nullptr;
         }
+        return nullptr;
     }
 
-    constexpr volatile uint8_t* port_in(port_t port) {
+    inline volatile uint8_t* port_in(port_t port) {
         switch (port) {
             case port_t::A: return &PINA;
             case port_t::B: return &PINB;
@@ -81,6 +100,7 @@ namespace rl {
             case port_t::L: return &PINL;
             default: return nullptr;
         }
+        return nullptr;
     }
 
     inline void gpio_pin_mode(pin_t p, gpio_mode mode) {
@@ -116,7 +136,6 @@ namespace rl {
     }
 
     #elif defined(STM32F3)
-    #include "stm32f3xx.h"
 
     constexpr GPIO_TypeDef* port_base(port_t port) {
         return reinterpret_cast<GPIO_TypeDef*>(AHB2PERIPH_BASE + 0x0400 * static_cast<uint8_t>(port));
@@ -150,7 +169,6 @@ namespace rl {
     }
 
     #elif defined(ESP32C3)
-    #include "driver/gpio.h"
 
     inline void gpio_pin_mode(pin_t p, gpio_mode mode) {
         gpio_config_t cfg = {};
@@ -174,7 +192,6 @@ namespace rl {
     }
 
     #elif defined(RA4M1)
-    #include "r_gpio_rx_if.h"
 
     inline void gpio_pin_mode(pin_t p, gpio_mode mode) {
         gpio_cfg_t cfg = {

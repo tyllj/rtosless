@@ -5,8 +5,9 @@
 #include <Arduino.h>
 
 // 🧩 Unique name helpers (internal only)
-#define __RTOSLESS_CONCAT(a, b) a##b
-#define __RTOSLESS_UNIQUE(name) __RTOSLESS_CONCAT(name, __LINE__)
+#define __RL_CONCAT(a, b) __RL_CONCAT_INNER(a, b)
+#define __RL_CONCAT_INNER(a, b) a##b
+#define __RL_UNIQUE(name) __RL_CONCAT(name, __LINE__)
 
 // 🔘 RL_DEBOUNCED(expr, ms): returns true when debounced signal changes
 #define RL_DEBOUNCED(expr, ms) \

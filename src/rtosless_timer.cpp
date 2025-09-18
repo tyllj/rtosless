@@ -3,37 +3,35 @@
 #include "rtosless_hal.h"
 #include "rtosless_kernel.h"
 
+namespace rl {
 
-typedef struct {
-    void (*handler)(void);
-    uint32_t exec_time;
-    uint32_t interval;
-    uint8_t flags;
-    void* instance_ptr;
-    void (*member_stub)(void*);
-} rtosless_timer_t;
+    typedef struct {
+        uint32_t exec_time;
+        uint32_t interval;
+        uint8_t flags;
+        void (*handler)(void);
+        void* instance_ptr;
+    } rtosless_timer_t;
 
-static rtosless_timer_t timers[TIMER_MAX_COUNT];
+    static rtosless_timer_t timers[TIMER_MAX_COUNT];
 
-static inline uint32_t rtosless_now(uint8_t res) {
-    return (res == TIMER_RESOLUTION_MILLIS) ? rl::kernel_millis() : rl::kernel_micros();
-}
+    static inline uint32_t rtosless_now(uint8_t res) {
+        return (res == TIMER_RESOLUTION_MILLIS) ? rl::kernel_millis() : rl::kernel_micros();
+    }
 
-static inline uint8_t timer_is_oneshot(uint8_t index) {
-    return (index < TIMER_MAX_COUNT && timers[index].interval == 0);
-}
-
-extern "C" {
+    static inline uint8_t timer_is_oneshot(uint8_t index) {
+        return (index < TIMER_MAX_COUNT && timers[index].interval == 0);
+    }
 
     uint8_t timer_create(void (*handler)(void), uint32_t interval, uint32_t phase,
-                         uint8_t resolution, uint8_t priority, uint8_t one_shot)
+                         uint8_t resolution, uint8_t priority)
     {
         if (priority >= SCHED_EVENT_PRIO_COUNT) return 0xFF;
         uint32_t ps = rl_enter_critical();
         for (uint8_t i = 0; i < TIMER_MAX_COUNT; ++i) {
-            if (!timers[i].handler && !timers[i].member_stub) {
+            if (!timers[i].handler) {
                 timers[i].handler = handler;
-                timers[i].interval = one_shot ? 0 : interval;
+                timers[i].interval = interval;
                 timers[i].exec_time = rtosless_now(resolution) + phase;
                 timer_set_trigger_state(&timers[i].flags, TIMER_STATE_RUNNING);
                 timer_set_resolution(&timers[i].flags, resolution);
@@ -50,7 +48,7 @@ extern "C" {
         if (index >= TIMER_MAX_COUNT) return;
         uint32_t ps = rl_enter_critical();
         timers[index].instance_ptr = instance;
-        timers[index].member_stub = stub;
+        timers[index].handler = reinterpret_cast<void (*)(void)>(reinterpret_cast<uintptr_t>(stub));
         timer_set_member_callback(&timers[index].flags, 1);
         rl_exit_critical(ps);
     }
@@ -85,38 +83,37 @@ extern "C" {
     }
 
     void timer_reconfigure(uint8_t index, void (*handler)(void), uint32_t interval,
-                           uint32_t phase, uint8_t resolution, uint8_t priority, uint8_t one_shot)
+                           uint32_t phase, uint8_t resolution, uint8_t priority)
     {
         if (index >= TIMER_MAX_COUNT || priority >= SCHED_EVENT_PRIO_COUNT) return;
         uint32_t ps = rl_enter_critical();
         rtosless_timer_t* t = &timers[index];
-        if (!t->handler && !t->member_stub) { rl_exit_critical(ps); return; }
+        if (!t->handler) { rl_exit_critical(ps); return; }
         if (handler) t->handler = handler;
-        t->interval = one_shot ? 0 : interval;
+        t->interval = interval;
         t->exec_time = rtosless_now(resolution) + phase;
         timer_set_trigger_state(&t->flags, TIMER_STATE_RUNNING);
         timer_set_resolution(&t->flags, resolution);
         timer_set_priority(&t->flags, priority);
-        timer_set_member_callback(&t->flags, t->member_stub ? 1 : 0);
         rl_exit_critical(ps);
     }
 
-    uint8_t timer_create_millis(void (*handler)(void), uint32_t interval, uint32_t phase) {
-        return timer_create(handler, interval, phase, TIMER_RESOLUTION_MILLIS, SCHED_PRIO_LOW, 0);
+    uint8_t timer_do_each_millis(void (*handler)(void), uint32_t interval) {
+        return timer_create(handler, interval, 0, TIMER_RESOLUTION_MILLIS, SCHED_PRIO_LOW);
     }
 
-    uint8_t timer_create_micros(void (*handler)(void), uint32_t interval, uint32_t phase) {
-        return timer_create(handler, interval, phase, TIMER_RESOLUTION_MICROS, SCHED_PRIO_HIGH, 0);
+    uint8_t timer_do_each_micros(void (*handler)(void), uint32_t interval) {
+        return timer_create(handler, interval, 0, TIMER_RESOLUTION_MICROS, SCHED_PRIO_HIGH);
     }
 
     uint8_t timer_do_in_millis(void (*handler)(void), uint32_t delay) {
-        return timer_create(handler, delay, 0, TIMER_RESOLUTION_MILLIS, SCHED_PRIO_LOW, 1);
+        return timer_create(handler, 0, delay, TIMER_RESOLUTION_MILLIS, SCHED_PRIO_HIGH);
     }
 
     static event_args_t timer_member_event_make_args(void (*member_stub)(void*), void* instance_ptr) {
         event_args_t args = {};
-        args.ptrs[0] = reinterpret_cast<uintptr_t>(member_stub);
-        args.ptrs[1] = reinterpret_cast<uintptr_t>(instance_ptr);
+        args.ptrs[0] = reinterpret_cast<uintptr_t>(instance_ptr);
+        args.ptrs[1] = reinterpret_cast<uintptr_t>(member_stub);
         return args;
     }
 
@@ -126,10 +123,10 @@ extern "C" {
         return args;
     }
 
-    static void call_member_callback(event_args_t args) {
-        void (*member_stub)(void*) = reinterpret_cast<void (*)(void*)>(args.ptrs[0]);    
-        void* instance_ptr = reinterpret_cast<void*>(args.ptrs[1]);
-        if (member_stub != nullptr && instance_ptr != nullptr)
+    static void call_member_callback(const event_args_t args) {
+        void* instance_ptr = reinterpret_cast<void*>(args.ptrs[0]);
+        void (*member_stub)(void*) = reinterpret_cast<void (*)(void*)>(args.ptrs[1]);    
+        if (instance_ptr && member_stub)
             member_stub(instance_ptr);
     }
 
@@ -148,13 +145,13 @@ extern "C" {
             uint32_t ps = rl_enter_critical();
             rtosless_timer_t* t = &timers[i];
 
-            if ((t->handler || t->member_stub) && timer_get_trigger_state(t->flags) == TIMER_STATE_RUNNING) {
+            if ((t->handler) && timer_get_trigger_state(t->flags) == TIMER_STATE_RUNNING) {
                 uint32_t now = (timer_get_resolution(t->flags) == TIMER_RESOLUTION_MILLIS) ? now_ms : now_us;
                 if (now >= t->exec_time) {
                     should_invoke = 1;
                     priority = timer_get_priority(t->flags);
                     handler = t->handler;
-                    member_stub = t->member_stub;
+                    member_stub = reinterpret_cast<void (*)(void*)>(t->handler);
                     instance_ptr = t->instance_ptr;
                     
                     args = timer_is_member_callback(t->flags)
@@ -173,11 +170,11 @@ extern "C" {
 
             if (should_invoke) {
                 if (timer_is_member_callback(t->flags) && member_stub && instance_ptr) {
-                    if (event_post(call_member_callback, args, priority) != 0) {
-                       member_stub(instance_ptr);
+                    if (event_post(call_member_callback, args, priority) != 0 && priority == SCHED_PRIO_HIGH) {
+                        member_stub(instance_ptr);
                     }
                 } else if (handler) {
-                    if (event_post(call_callback, args, priority) != 0) {
+                    if (event_post(call_callback, args, priority) != 0 && priority == SCHED_PRIO_HIGH) {
                         handler();
                     }
                 }

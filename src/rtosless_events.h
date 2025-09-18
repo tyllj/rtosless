@@ -3,13 +3,10 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-    #endif
+#define SCHED_EVENT_PRIO_COUNT 2
+#define SCHED_EVENT_QUEUE_LEN  16
 
-    #define SCHED_EVENT_PRIO_COUNT 2
-    #define SCHED_EVENT_QUEUE_LEN  16
-
+namespace rl {
     typedef union {
         uintptr_t ptrs[2];
         uint8_t   bytes[16];
@@ -25,20 +22,13 @@ extern "C" {
     void event_process_pending(void);
     void call_callback(event_args_t args);
 
-    #ifdef __cplusplus
-}
-#endif
-
-// -------------------- C++ Extensions --------------------
-#ifdef __cplusplus
-
-namespace {
     // Trampoline for member functions
     template<typename T>
     void event_trampoline_method(event_args_t args) {
         T* instance = reinterpret_cast<T*>(args.ptrs[0]);
         void (T::*method)() = reinterpret_cast<void (T::*)()>(args.ptrs[1]);
-        (instance->*method)();
+        if (instance && method)
+            (instance->*method)();
     }
 
     // Post a member function
@@ -66,6 +56,5 @@ namespace {
     }
 }
 
-#endif // __cplusplus
 
 #endif // RTOSLESS_EVENTS_H

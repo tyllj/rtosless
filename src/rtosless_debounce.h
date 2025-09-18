@@ -2,66 +2,92 @@
 #define RTOSLESS_DEBOUNCE_H
 
 #include <stdint.h>
-#include <Arduino.h>
+#include "rtosless_kernel.h"
 
-// 🧩 Unique name helpers (internal only)
-#define __RL_CONCAT(a, b) __RL_CONCAT_INNER(a, b)
-#define __RL_CONCAT_INNER(a, b) a##b
-#define __RL_UNIQUE(name) __RL_CONCAT(name, __LINE__)
+#ifndef RL_DEBOUNCE_DEFAULT_MS
+#define RL_DEBOUNCE_DEFAULT_MS 25
+#endif
 
-// 🔘 RL_DEBOUNCED(expr, ms): returns true when debounced signal changes
-#define RL_DEBOUNCED(expr, ms) \
+namespace rl {
+
+class debounced_input_t {
+public:
+    explicit debounced_input_t(uint32_t debounce_ms = RL_DEBOUNCE_DEFAULT_MS)
+        : debounce_ms_(debounce_ms) {}
+
+    bool update(bool raw) {
+        if (raw != last_raw_) {
+            last_raw_ = raw;
+            last_change_ = kernel_millis();
+        }
+        if ((kernel_millis() - last_change_) >= debounce_ms_ && raw != stable_state_) {
+            stable_state_ = raw;
+            return true;
+        }
+        return false;
+    }
+
+    bool state(bool raw) {
+        if (raw != last_raw_) {
+            last_raw_ = raw;
+            last_change_ = kernel_millis();
+        }
+        if ((kernel_millis() - last_change_) >= debounce_ms_) {
+            stable_state_ = raw;
+        }
+        return stable_state_;
+    }
+
+    bool rising(bool raw) {
+        bool current = state(raw);
+        bool edge = (!last_state_ && current);
+        last_state_ = current;
+        return edge;
+    }
+
+    bool falling(bool raw) {
+        bool current = state(raw);
+        bool edge = (last_state_ && !current);
+        last_state_ = current;
+        return edge;
+    }
+
+private:
+    uint32_t debounce_ms_;
+    bool last_raw_ = false;
+    bool stable_state_ = false;
+    bool last_state_ = false;
+    uint32_t last_change_ = 0;
+};
+
+} // namespace rl
+
+// 🔘 RL_DEBOUNCED(expr): returns true when debounced signal changes
+#define RL_DEBOUNCED(expr) \
 ([]() -> bool { \
-    static bool __RTOSLESS_UNIQUE(last_raw) = (expr); \
-    static bool __RTOSLESS_UNIQUE(stable_state) = (expr); \
-    static uint32_t __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
-    bool raw = (expr); \
-    if (raw != __RTOSLESS_UNIQUE(last_raw)) { \
-        __RTOSLESS_UNIQUE(last_raw) = raw; \
-        __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
-    } \
-    if ((rl::kernel_millis() - __RTOSLESS_UNIQUE(last_change)) >= (ms) && raw != __RTOSLESS_UNIQUE(stable_state)) { \
-        __RTOSLESS_UNIQUE(stable_state) = raw; \
-        return true; \
-    } \
-    return false; \
+    static rl::debounced_input_t debounce; \
+    return debounce.update(expr); \
 })()
 
-// 🔘 RL_DEBOUNCED_STATE(expr, ms): returns current debounced value
-#define RL_DEBOUNCED_STATE(expr, ms) \
+// 🔘 RL_DEBOUNCED_STATE(expr): returns current debounced value
+#define RL_DEBOUNCED_STATE(expr) \
 ([]() -> bool { \
-    static bool __RTOSLESS_UNIQUE(last_raw) = (expr); \
-    static bool __RTOSLESS_UNIQUE(stable_state) = (expr); \
-    static uint32_t __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
-    bool raw = (expr); \
-    if (raw != __RTOSLESS_UNIQUE(last_raw)) { \
-        __RTOSLESS_UNIQUE(last_raw) = raw; \
-        __RTOSLESS_UNIQUE(last_change) = rl::kernel_millis(); \
-    } \
-    if ((rl::kernel_millis() - __RTOSLESS_UNIQUE(last_change)) >= (ms)) { \
-        __RTOSLESS_UNIQUE(stable_state) = raw; \
-    } \
-    return __RTOSLESS_UNIQUE(stable_state); \
+    static rl::debounced_input_t debounce; \
+    return debounce.state(expr); \
 })()
 
-// 🔼 RL_DEBOUNCED_RISING(expr, ms): returns true on rising edge
-#define RL_DEBOUNCED_RISING(expr, ms) \
+// 🔼 RL_DEBOUNCED_RISING(expr): returns true on rising edge
+#define RL_DEBOUNCED_RISING(expr) \
 ([]() -> bool { \
-    static bool __RTOSLESS_UNIQUE(last_state) = (expr); \
-    bool current = RL_DEBOUNCED_STATE(expr, ms); \
-    bool rising = (!__RTOSLESS_UNIQUE(last_state) && current); \
-    __RTOSLESS_UNIQUE(last_state) = current; \
-    return rising; \
+    static rl::debounced_input_t debounce; \
+    return debounce.rising(expr); \
 })()
 
-// 🔽 RL_DEBOUNCED_FALLING(expr, ms): returns true on falling edge
-#define RL_DEBOUNCED_FALLING(expr, ms) \
+// 🔽 RL_DEBOUNCED_FALLING(expr): returns true on falling edge
+#define RL_DEBOUNCED_FALLING(expr) \
 ([]() -> bool { \
-    static bool __RTOSLESS_UNIQUE(last_state) = (expr); \
-    bool current = RL_DEBOUNCED_STATE(expr, ms); \
-    bool falling = (__RTOSLESS_UNIQUE(last_state) && !current); \
-    __RTOSLESS_UNIQUE(last_state) = current; \
-    return falling; \
+    static rl::debounced_input_t debounce; \
+    return debounce.falling(expr); \
 })()
 
 #endif // RTOSLESS_DEBOUNCE_H

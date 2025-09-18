@@ -155,7 +155,7 @@ _plex{ ~0x02, ~0x04, ~0x08, ~0x01 }
 {}
 
 void SG::SevenSegment::init() {
-    timer_create_member_micros<SG::SevenSegment, &SG::SevenSegment::refresh>(this, 5000);
+    rl::timer_create_member_micros<SG::SevenSegment, &SG::SevenSegment::refresh>(this, 5000);
 }
 
 void SG::SevenSegment::setChar(uint8_t index, char character) {

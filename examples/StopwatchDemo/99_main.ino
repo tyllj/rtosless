@@ -1,6 +1,7 @@
 #include "SevenSegment.h"
 #include <rtosless.h>
-
+#include <rtosless_gpio.h>
+#include <rtosless_debounce.h>
 SG::SevenSegment display(PIN_DISP_DAT, PIN_DISP_SHCK, PIN_DISP_STCK);
 bool isRunning = true;
 uint32_t offset = 0;
@@ -18,11 +19,12 @@ void setup() {
 void loop() {
   rl::kernel();
   
-  RL_EVERY_MILLIS(500) {
-    rl::gpio_toggle(PIN_LED);
+  if (RL_DEBOUNCED_FALLING(rl::gpio_read(PIN_BTN_1))) {
+    rl::gpio_write(PIN_LED, HIGH);
+    rl::timer_do_in_millis([](){rl::gpio_write(PIN_LED, LOW);}, 3000);
   }
 
-  RL_EVERY_MILLIS(100) {
+  RL_EVERY_MILLIS(250) {
     rl::gpio_toggle(rl::arduino::D13);
   }
 

@@ -1,34 +1,34 @@
 #include "rtosless_events.h"
 #include "rtosless_hal.h"
 
-static volatile uint8_t ev_head[SCHED_EVENT_PRIO_COUNT];
-static volatile uint8_t ev_tail[SCHED_EVENT_PRIO_COUNT];
+namespace rl {
 
-typedef struct {
-    void (*handler)(event_args_t);
-    event_args_t args;
-} event_entry_t;
+    static volatile uint8_t ev_head[SCHED_EVENT_PRIO_COUNT];
+    static volatile uint8_t ev_tail[SCHED_EVENT_PRIO_COUNT];
 
-static event_entry_t ev_q[SCHED_EVENT_PRIO_COUNT][SCHED_EVENT_QUEUE_LEN];
+    typedef struct {
+        void (*handler)(rl::event_args_t);
+        rl::event_args_t args;
+    } event_entry_t;
 
-static inline int32_t event_enqueue_unsafe(uint8_t prio, void (*handler)(event_args_t), event_args_t args) {
-    uint8_t next = (ev_tail[prio] + (uint8_t)1u) % SCHED_EVENT_QUEUE_LEN;
-    if (next == ev_head[prio]) return -1;
-    ev_q[prio][ev_tail[prio]].handler = handler;
-    ev_q[prio][ev_tail[prio]].args = args;
-    ev_tail[prio] = next;
-    return 0;
-}
+    static event_entry_t ev_q[SCHED_EVENT_PRIO_COUNT][SCHED_EVENT_QUEUE_LEN];
 
-static inline int32_t event_dequeue_unsafe(uint8_t prio, void (**out)(event_args_t), event_args_t* args_out) {
-    if (ev_head[prio] == ev_tail[prio]) return -1;
-    *out = ev_q[prio][ev_head[prio]].handler;
-    *args_out = ev_q[prio][ev_head[prio]].args;
-    ev_head[prio] = (ev_head[prio] + (uint8_t)1u) % SCHED_EVENT_QUEUE_LEN;
-    return 0;
-}
+    static inline int32_t event_enqueue_unsafe(uint8_t prio, void (*handler)(event_args_t), event_args_t args) {
+        uint8_t next = (ev_tail[prio] + (uint8_t)1u) % SCHED_EVENT_QUEUE_LEN;
+        if (next == ev_head[prio]) return -1;
+        ev_q[prio][ev_tail[prio]].handler = handler;
+        ev_q[prio][ev_tail[prio]].args = args;
+        ev_tail[prio] = next;
+        return 0;
+    }
 
-extern "C" {
+    static inline int32_t event_dequeue_unsafe(uint8_t prio, void (**out)(event_args_t), event_args_t* args_out) {
+        if (ev_head[prio] == ev_tail[prio]) return -1;
+        *out = ev_q[prio][ev_head[prio]].handler;
+        *args_out = ev_q[prio][ev_head[prio]].args;
+        ev_head[prio] = (ev_head[prio] + (uint8_t)1u) % SCHED_EVENT_QUEUE_LEN;
+        return 0;
+    }
 
     int32_t event_post(void (*handler)(event_args_t), event_args_t args, uint8_t priority) {
         if (handler == (void (*)(event_args_t))0 || priority >= SCHED_EVENT_PRIO_COUNT) return -1;

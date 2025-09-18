@@ -53,21 +53,25 @@ namespace rl {
 
 // 🧵 Define a coroutine with internal task_completion_source_t<T>
 #define RL_ASYNC_FN(name, return_type, ...) \
-rl::task_completion_source_t<return_type>* name##_entry(__VA_ARGS__) { \
-    static bool __initialized = false; \
-    static int __state = 0; \
-    static bool __completed = false; \
-    static void (*__resume)() = name##_resume; \
-    static rl::task_completion_source_t<return_type> __self = {}; \
-    if (!__initialized) { \
-        __initialized = true; \
-        static __VA_ARGS__; \
+    struct name##_state_t { \
+        bool initialized = false; \
+        int state = 0; \
+        bool completed = false; \
+        rl::task_completion_source_t<return_type> self = {}; \
+        void (*resume)() = name##_resume; \
+        /* User variables can be added here if needed */ \
+    }; \
+    static name##_state_t name##_state; \
+    rl::task_completion_source_t<return_type>* name##_entry(__VA_ARGS__) { \
+        if (!name##_state.initialized) { \
+            name##_state.initialized = true; \
+            /* User variables initialization if needed */ \
+        } \
+        name##_resume(); \
+        return &name##_state.self; \
     } \
-    name##_resume(); \
-    return &__self; \
-} \
-void name##_resume() { \
-    switch (__state) { case 0:
+    void name##_resume() { \
+        switch (name##_state.state) { case 0:
 
         // ⏳ Await macro (returns result from task_completion_source_t<T> or pointer)
         #define RL_ASYNC_AWAIT(awaitable_or_ptr) \
@@ -76,8 +80,8 @@ void name##_resume() { \
             ? awaitable_or_ptr \
             : &(awaitable_or_ptr); \
             if (__ptr && !__ptr->is_ready()) { \
-                __resume = __func__; \
-                __state = __LINE__; return {}; case __LINE__:; \
+                name##_state.resume = __func__; \
+                name##_state.state = __LINE__; return {}; case __LINE__:; \
             } \
             __ptr->result; \
         })
@@ -88,12 +92,12 @@ void name##_resume() { \
             static uint32_t __delay_start = 0; \
             if (__delay_start == 0) { \
                 __delay_start = rl::kernel_millis(); \
-                __resume = __func__; \
-                __state = __LINE__; return; case __LINE__:; \
+                name##_state.resume = __func__; \
+                name##_state.state = __LINE__; return; case __LINE__:; \
             } \
             if (rl::kernel_millis() - __delay_start < (ms)) { \
-                __resume = __func__; \
-                __state = __LINE__; return; case __LINE__:; \
+                name##_state.resume = __func__; \
+                name##_state.state = __LINE__; return; case __LINE__:; \
             } \
             __delay_start = 0; \
         } while (0)
@@ -103,12 +107,12 @@ void name##_resume() { \
             static uint32_t __delay_start = 0; \
             if (__delay_start == 0) { \
                 __delay_start = rl::kernel_micros(); \
-                __resume = __func__; \
-                __state = __LINE__; return; case __LINE__:; \
+                name##_state.resume = __func__; \
+                name##_state.state = __LINE__; return; case __LINE__:; \
             } \
             if (rl::kernel_micros() - __delay_start < (us)) { \
-                __resume = __func__; \
-                __state = __LINE__; return; case __LINE__:; \
+                name##_state.resume = __func__; \
+                name##_state.state = __LINE__; return; case __LINE__:; \
             } \
             __delay_start = 0; \
         } while (0)
@@ -116,25 +120,25 @@ void name##_resume() { \
         // ✅ Return macro (handles void and non-void)
         #define RL_ASYNC_RETURN(val) \
         do { \
-            __completed = true; \
+            name##_state.completed = true; \
             if constexpr (!__builtin_types_compatible_p(typeof(val), void)) { \
-                __self.fulfill(val); \
+                name##_state.self.fulfill(val); \
             } else { \
-                __self.fulfill(); \
+                name##_state.self.fulfill(); \
             } \
             return; \
         } while (0)
 
         // ✅ End macro (for void-returning coroutines)
         #define RL_ASYNC_END \
-    } __completed = true; __self.fulfill(); }
+    } name##_state.completed = true; name##_state.self.fulfill(); }
 
     // 🔁 Yield until condition is true
     #define RL_ASYNC_YIELD_UNTIL(expr) \
     do { \
         if (!(expr)) { \
-            __resume = __func__; \
-            __state = __LINE__; return; case __LINE__:; \
+            name##_state.resume = __func__; \
+            name##_state.state = __LINE__; return; case __LINE__:; \
         } \
     } while (0)
 

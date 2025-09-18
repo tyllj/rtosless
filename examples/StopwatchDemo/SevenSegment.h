@@ -6,7 +6,6 @@
 #include <drv/rtosless_ic74HC595.h>
 
 namespace SG {
-
     class SevenSegment {
     public:
         SevenSegment(rl::pin_t data, rl::pin_t shiftClock, rl::pin_t storageClock);
@@ -25,7 +24,6 @@ namespace SG {
         uint8_t _n;
         uint8_t _plex[4];
     };
-
 } // namespace SG
 
 #endif // SG_SEVENSEGMENT_H

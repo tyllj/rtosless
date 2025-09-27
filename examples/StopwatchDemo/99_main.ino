@@ -2,6 +2,7 @@
 #include <rtosless.h>
 #include <rtosless_gpio.h>
 #include <rtosless_debounce.h>
+#include <rtosless_async.h>
 SG::SevenSegment display(PIN_DISP_DAT, PIN_DISP_SHCK, PIN_DISP_STCK);
 bool isRunning = true;
 uint32_t offset = 0;

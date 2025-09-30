@@ -1,26 +1,30 @@
-#ifndef RTOSLESS_HAL_H
-#define RTOSLESS_HAL_H
+#ifndef RTOSLESS_STATES_H
+#define RTOSLESS_STATES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace rl {
+    typedef void* rl_state_id_t;
 
-    typedef void* state_id_t;
-
-    typedef state_id_t (*state_fn_t)(void);
+    typedef rl_state_id_t (*rl_state_fn_t)(void);
 
     typedef struct {
-        state_fn_t current;
-    } state_machine_t;
+        rl_state_fn_t current;
+    } rl_state_machine_t;
 
-    inline void state_machine_init(state_machine_t* sm, state_fn_t initial) {
+    static inline void rl_state_machine_init(rl_state_machine_t* sm, rl_state_fn_t initial) {
         sm->current = initial;
     }
 
-    inline void state_machine_run(state_machine_t* sm) {
+    static inline void rl_state_machine_run(rl_state_machine_t* sm) {
         if (sm->current) {
-            sm->current = sm->current();
+            sm->current = (rl_state_fn_t)sm->current();
         }
     }
-}
 
-#endif // RTOSLESS_HAL_H
+#ifdef __cplusplus
+}
+#endif
+
+#endif // RTOSLESS_STATES_H

@@ -1,58 +1,62 @@
 #ifndef RTOSLESS_SIGNALS_H
 #define RTOSLESS_SIGNALS_H
 
-#include "rtosless_async.h"
+#include "rtosless_hal.h"
 
-namespace rl {
+#include <stdbool.h>
 
-// 🔘 auto_reset_signal_t: triggers once, resets after await
-class auto_reset_signal_t {
-private:
-    volatile bool triggered = false;
-public:
-    inline void trigger() {
-        triggered = true;
-    }
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    task_completion_source_t<void>* await() {
-        static task_completion_source_t<void> signal = {};
-        if (triggered) {
-            triggered = false;
-            signal.fulfill();
+// 🔘 rl_signal_t: unified signal type with auto/manual reset modes
+// State encoding: lower nibble = triggered (0x01), upper nibble = auto_reset (0x10)
+typedef struct {
+    volatile uint8_t state;
+} rl_signal_t;
+
+#define RL_SIGNAL_TRIGGERED_BIT 0x01
+#define RL_SIGNAL_AUTO_RESET_BIT 0x10
+
+// Constructors for different modes
+static inline rl_signal_t rl_signal_auto_reset() {
+    rl_signal_t s = {RL_SIGNAL_AUTO_RESET_BIT};
+    return s;
+}
+
+static inline rl_signal_t rl_signal_manual_reset() {
+    rl_signal_t s = {0};
+    return s;
+}
+
+// Core operations
+static inline void rl_signal_trigger(rl_signal_t* s) {
+    bool ps = rl_enter_critical();
+    s->state |= RL_SIGNAL_TRIGGERED_BIT;
+    rl_exit_critical(ps);
+}
+
+static inline void rl_signal_reset(rl_signal_t* s) {
+    bool ps = rl_enter_critical();
+    s->state &= ~RL_SIGNAL_TRIGGERED_BIT;
+    rl_exit_critical(ps);
+}
+
+static inline bool rl_signal_is_triggered(rl_signal_t* s) {
+    bool result = false;
+    bool ps = rl_enter_critical();
+    if (s->state & RL_SIGNAL_TRIGGERED_BIT) {
+        result = true;
+        // Auto-reset behavior: clear trigger after checking
+        if (s->state & RL_SIGNAL_AUTO_RESET_BIT) {
+            s->state &= ~RL_SIGNAL_TRIGGERED_BIT;
         }
-        return &signal;
     }
+    rl_exit_critical(ps);
+    return result;
+}
 
-    inline bool is_triggered() const {
-        return triggered;
-    }
-};
-
-// 🔘 manual_reset_signal_t: stays triggered until cleared
-class manual_reset_signal_t {
-private:
-    volatile bool triggered = false;
-public:
-    inline void trigger() {
-        triggered = true;
-    }
-
-    inline void reset() {
-        triggered = false;
-    }
-
-    task_completion_source_t<void>* await() {
-        static task_completion_source_t<void> signal = {};
-        if (triggered && !signal.is_ready()) {
-            signal.fulfill();
-        }
-        return &signal;
-    }
-
-    inline bool is_triggered() const {
-        return triggered;
-    }
-};
-
-} // namespace rl
+#ifdef __cplusplus
+}
+#endif
 #endif // RTOSLESS_SIGNALS_H

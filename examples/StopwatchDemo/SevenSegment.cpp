@@ -11,7 +11,7 @@
  *  4 2
  *   3 7
  */
-inline const PROGMEM uint8_t SG_SevenSegment_font[128] = {
+static const PROGMEM uint8_t SG_SevenSegment_font[128] = {
 //    76543210
     0b00000000, //
     0b00000000, //
@@ -146,16 +146,17 @@ static const uint8_t font_lookup(char c) {
     return pgm_read_byte(&SG_SevenSegment_font[static_cast<uint8_t>(c)]);
 }
 
-SG::SevenSegment::SevenSegment(rl::pin_t data, rl::pin_t shiftClock, rl::pin_t storageClock)
-: _shift(data, shiftClock, storageClock, LSBFIRST),
-_chars{0},
-_points{0},
-_n(0),
-_plex{ ~0x02, ~0x04, ~0x08, ~0x01 }
+SG::SevenSegment::SevenSegment(rl_pin_t data, rl_pin_t shiftClock, rl_pin_t storageClock)
+: _shift(rl_ic74hc595_create(data, shiftClock, storageClock, LSBFIRST)),
+    _chars{0},
+    _points{0},
+    _n(0),
+    _plex{ (uint8_t)~0x02, (uint8_t)~0x04, (uint8_t)~0x08, (uint8_t)~0x01 }
 {}
 
 void SG::SevenSegment::init() {
-    rl::timer_create_member_micros<SG::SevenSegment, &SG::SevenSegment::refresh>(this, 5000);
+    rl_ic74hc595_setup_pins(&_shift);
+    rl_timer_do_each_micros(5000, [](void* self) { ((SevenSegment*)self)->refresh(); }, this);
 }
 
 void SG::SevenSegment::setChar(uint8_t index, char character) {
@@ -180,10 +181,10 @@ void SG::SevenSegment::refresh() {
     if ((_points >> _n) & 1)
         charBits |= 0b10000000;
 
-    _shift.begin_transmission();
-    _shift.shift_out(charBits);
-    _shift.shift_out(plexBits);
-    _shift.end_transmission();
+    rl_ic74hc595_begin_transmission(&_shift);
+    rl_ic74hc595_shift_out(&_shift, charBits);
+    rl_ic74hc595_shift_out(&_shift, plexBits);
+    rl_ic74hc595_end_transmission(&_shift);
 
     _n = (_n + 1) % 4;
 }

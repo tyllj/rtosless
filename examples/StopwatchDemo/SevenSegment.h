@@ -8,7 +8,7 @@
 namespace SG {
     class SevenSegment {
     public:
-        SevenSegment(rl::pin_t data, rl::pin_t shiftClock, rl::pin_t storageClock);
+        SevenSegment(rl_pin_t data, rl_pin_t shiftClock, rl_pin_t storageClock);
         void init();
         void setChar(uint8_t index, char character);
         void clearChar(uint8_t index) { setChar(index, 0); }
@@ -18,7 +18,7 @@ namespace SG {
         void refresh();
 
     private:
-        rl::drv::ic74HC595 _shift;
+        rl_ic74hc595_t _shift;
         uint8_t _chars[4];
         uint8_t _points;
         uint8_t _n;
